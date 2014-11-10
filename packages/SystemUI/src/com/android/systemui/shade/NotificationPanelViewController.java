@@ -348,6 +348,9 @@ public final class NotificationPanelViewController implements Dumpable {
     private static final String RETICKER_COLORED =
             "system:" + Settings.System.RETICKER_COLORED;
 
+    private static final String STATUS_BAR_QUICK_QS_PULLDOWN =
+            "system:" + Settings.System.STATUS_BAR_QUICK_QS_PULLDOWN;
+
     private final InteractionJankMonitor mInteractionJankMonitor;
     private final LayoutInflater mLayoutInflater;
     private final FeatureFlags mFeatureFlags;
@@ -412,7 +415,6 @@ public final class NotificationPanelViewController implements Dumpable {
     private int mMaxAllowedKeyguardNotifications;
 
     private final TunerService mTunerService;
-
     private KeyguardQsUserSwitchController mKeyguardQsUserSwitchController;
     private KeyguardUserSwitcherController mKeyguardUserSwitcherController;
     private KeyguardStatusBarView mKeyguardStatusBar;
@@ -576,7 +578,8 @@ public final class NotificationPanelViewController implements Dumpable {
     private float mMinFraction;
 
     private final KeyguardMediaController mKeyguardMediaController;
-
+    private int mOneFingerQuickSettingsIntercept;
+	
     private boolean mStatusViewCentered = true;
 
     private final Optional<KeyguardUnfoldTransition> mKeyguardUnfoldTransition;
@@ -2227,6 +2230,79 @@ public final class NotificationPanelViewController implements Dumpable {
     /** Return whether a touch is near the gesture handle at the bottom of screen */
     public boolean isInGestureNavHomeHandleArea(float x, float y) {
         return mIsGestureNavigation && y > mView.getHeight() - mNavigationBarBottomHeight;
+    }
+
+    /** Returns whether split shade is enabled and an x coordinate is outside of the QS frame. */
+    private boolean isSplitShadeAndTouchXOutsideQs(float touchX) {
+        return mSplitShadeEnabled && (touchX < mQsFrame.getX()
+                || touchX > mQsFrame.getX() + mQsFrame.getWidth());
+    }
+
+    private boolean isInQsArea(float x, float y) {
+        if (isSplitShadeAndTouchXOutsideQs(x)) {
+            return false;
+        }
+        // Let's reject anything at the very bottom around the home handle in gesture nav
+        if (mIsGestureNavigation && y > mView.getHeight() - mNavigationBarBottomHeight) {
+            return false;
+        }
+        return y <= mNotificationStackScrollLayoutController.getBottomMostNotificationBottom()
+                || y <= mQs.getView().getY() + mQs.getView().getHeight();
+    }
+
+    private boolean isOpenQsEvent(MotionEvent event) {
+        final int pointerCount = event.getPointerCount();
+        final int action = event.getActionMasked();
+
+        final boolean
+                twoFingerDrag =
+                action == MotionEvent.ACTION_POINTER_DOWN && pointerCount == 2;
+
+        final boolean
+                stylusButtonClickDrag =
+                action == MotionEvent.ACTION_DOWN && (event.isButtonPressed(
+                        MotionEvent.BUTTON_STYLUS_PRIMARY) || event.isButtonPressed(
+                        MotionEvent.BUTTON_STYLUS_SECONDARY));
+
+        final boolean
+                mouseButtonClickDrag =
+                action == MotionEvent.ACTION_DOWN && (event.isButtonPressed(
+                        MotionEvent.BUTTON_SECONDARY) || event.isButtonPressed(
+                        MotionEvent.BUTTON_TERTIARY));
+
+        final float w = mView.getMeasuredWidth();
+        final float x = event.getX();
+        float region = w * 1.f / 4.f; // TODO overlay region fraction?
+        boolean showQsOverride = false;
+
+        switch (mOneFingerQuickSettingsIntercept) {
+            case 1: // Right side pulldown
+                showQsOverride = mView.isLayoutRtl() ? x < region : w - region < x;
+                break;
+            case 2: // Left side pulldown
+                showQsOverride = mView.isLayoutRtl() ? w - region < x : x < region;
+                break;
+        }
+        showQsOverride &= mBarState == StatusBarState.SHADE;
+
+        return twoFingerDrag || showQsOverride || stylusButtonClickDrag || mouseButtonClickDrag;
+    }
+
+    private void handleQsDown(MotionEvent event) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN && shouldQuickSettingsIntercept(
+                event.getX(), event.getY(), -1)) {
+            debugLog("handleQsDown");
+            mFalsingCollector.onQsDown();
+            mShadeLog.logMotionEvent(event, "handleQsDown: down action, QS tracking enabled");
+            mQsTracking = true;
+            onQsExpansionStarted();
+            mInitialHeightOnTouch = mQsExpansionHeight;
+            mInitialTouchY = event.getY();
+            mInitialTouchX = event.getX();
+
+            // If we interrupt an expansion gesture here, make sure to update the state correctly.
+            notifyExpandingFinished();
+        }
     }
 
     /** Input focus transfer is about to happen. */
@@ -4679,6 +4755,7 @@ public final class NotificationPanelViewController implements Dumpable {
             mConfigurationController.addCallback(mConfigurationListener);
             mTunerService.addTunable(this, RETICKER_STATUS);
             mTunerService.addTunable(this, RETICKER_COLORED);
+            mTunerService.addTunable(this, STATUS_BAR_QUICK_QS_PULLDOWN);
             // Theme might have changed between inflating this view and attaching it to the
             // window, so
             // force a call to onThemeChanged
@@ -4708,6 +4785,10 @@ public final class NotificationPanelViewController implements Dumpable {
                 case RETICKER_COLORED:
                     mReTickerColored =
                             TunerService.parseIntegerSwitch(newValue, false);
+                    break;
+                case STATUS_BAR_QUICK_QS_PULLDOWN:
+                    mOneFingerQuickSettingsIntercept =
+                    TunerService.parseInteger(newValue, 1);
                     break;
                 default:
                     break;
