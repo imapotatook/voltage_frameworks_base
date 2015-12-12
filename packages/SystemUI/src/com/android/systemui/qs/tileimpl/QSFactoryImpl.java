@@ -29,6 +29,7 @@ import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.external.CustomTile;
 import com.android.systemui.qs.tiles.AirplaneModeTile;
 import com.android.systemui.qs.tiles.AlarmTile;
+import com.android.systemui.qs.tiles.AmbientDisplayTile;
 import com.android.systemui.qs.tiles.BatterySaverTile;
 import com.android.systemui.qs.tiles.BluetoothTile;
 import com.android.systemui.qs.tiles.CameraToggleTile;
@@ -115,6 +116,7 @@ public class QSFactoryImpl implements QSFactory {
     private final Provider<DreamTile> mDreamTileProvider;
     private final Provider<SleepModeTile> mSleepModeTileProvider;
     private final Provider<CaffeineTile> mCaffeineTileProvider;
+    private final Provider<AmbientDisplayTile> mAmbientDisplayTileProvider;
 
     private final Lazy<QSHost> mQsHostLazy;
     private final Provider<CustomTile.Builder> mCustomTileBuilderProvider;
@@ -154,7 +156,8 @@ public class QSFactoryImpl implements QSFactory {
             Provider<ColorCorrectionTile> colorCorrectionTileProvider,
             Provider<DreamTile> dreamTileProvider,
             Provider<SleepModeTile> sleepModeTileProvider,
-            Provider<CaffeineTile> caffeineTileProvider) {
+            Provider<CaffeineTile> caffeineTileProvider,
+            Provider<AmbientDisplayTile> ambientDisplayTileProvider) {
         mQsHostLazy = qsHostLazy;
         mCustomTileBuilderProvider = customTileBuilderProvider;
 
@@ -190,6 +193,7 @@ public class QSFactoryImpl implements QSFactory {
         mDreamTileProvider = dreamTileProvider;
         mSleepModeTileProvider = sleepModeTileProvider;
         mCaffeineTileProvider = caffeineTileProvider;
+        mAmbientDisplayTileProvider = ambientDisplayTileProvider;
     }
 
     /** Creates a tile with a type based on {@code tileSpec} */
@@ -269,6 +273,8 @@ public class QSFactoryImpl implements QSFactory {
                 return mSleepModeTileProvider.get();
             case "caffeine":
                 return mCaffeineTileProvider.get();
+            case "ambient_display":
+                return mAmbientDisplayTileProvider.get();
         }
 
         // Custom tiles
