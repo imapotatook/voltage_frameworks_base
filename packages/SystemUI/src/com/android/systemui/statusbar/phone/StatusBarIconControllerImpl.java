@@ -38,6 +38,7 @@ import com.android.systemui.demomode.DemoModeController;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.StatusIconDisplayable;
+import com.android.systemui.statusbar.connectivity.ImsIconState;
 import com.android.systemui.statusbar.phone.PhoneStatusBarPolicy.BluetoothIconState;
 import com.android.systemui.statusbar.phone.StatusBarSignalPolicy.CallIndicatorIconState;
 import com.android.systemui.statusbar.phone.StatusBarSignalPolicy.MobileIconState;
@@ -385,6 +386,26 @@ public class StatusBarIconControllerImpl implements Tunable,
         setExternalIcon(slot, icon);
     }
 
+    @Override
+    public void setImsIcon(String slot, ImsIconState state) {
+        if (state == null) {
+            removeIcon(slot, 0);
+            return;
+        }
+
+        StatusBarIconHolder holder = mStatusBarIconList.getIconHolder(slot, 0);
+        if (holder == null) {
+            holder = StatusBarIconHolder.fromImsIconState(state);
+            setIcon(slot, holder);
+        } else {
+            holder.setImsState(state);
+            handleSet(slot, holder);
+        }
+    }
+
+    // Override for *both* CommandQueue.Callbacks AND StatusBarIconController.
+    // TODO(b/265307726): Pull out the CommandQueue callbacks into a member variable to
+    //  differentiate between those callback methods and StatusBarIconController methods.
     @Override
     public void removeIconForTile(String slot) {
         removeAllIconsForExternalSlot(slot);
