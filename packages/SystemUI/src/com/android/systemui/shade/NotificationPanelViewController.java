@@ -81,6 +81,7 @@ import android.util.IndentingPrintWriter;
 import android.util.Log;
 import android.util.MathUtils;
 import android.view.InputDevice;
+import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
@@ -109,6 +110,7 @@ import com.android.internal.util.LatencyTracker;
 import com.android.keyguard.ActiveUnlockConfig;
 import com.android.keyguard.FaceAuthApiRequestReason;
 import com.android.keyguard.KeyguardClockSwitch.ClockSize;
+import com.android.internal.util.voltage.VoltageUtils;
 import com.android.keyguard.KeyguardStatusView;
 import com.android.keyguard.KeyguardStatusViewController;
 import com.android.keyguard.KeyguardUnfoldTransition;
@@ -399,6 +401,13 @@ public final class NotificationPanelViewController implements Dumpable {
     private TrackingStartedListener mTrackingStartedListener;
     private OpenCloseListener mOpenCloseListener;
     private GestureRecorder mGestureRecorder;
+    private boolean mQsTracking;
+
+    private GestureDetector mLockscreenDoubleTapToSleep;
+    private boolean mIsLockscreenDoubleTapEnabled;
+	
+    /** Whether the ongoing gesture might both trigger the expansion in both the view and QS. */
+    private boolean mConflictingQsExpansionGesture;
     private boolean mPanelExpanded;
 
     private boolean mKeyguardQsUserSwitchEnabled;
@@ -942,7 +951,17 @@ public final class NotificationPanelViewController implements Dumpable {
                 });
         mAlternateBouncerInteractor = alternateBouncerInteractor;
         dumpManager.registerDumpable(this);
+	
+        mLockscreenDoubleTapToSleep = new GestureDetector(context,
+                new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                VoltageUtils.switchScreenOff(context);
+                return true;
+            }
+        });
     }
+
 
     private void unlockAnimationFinished() {
         // Make sure the clock is in the correct position after the unlock animation
@@ -3337,6 +3356,14 @@ public final class NotificationPanelViewController implements Dumpable {
         updateMaxDisplayedNotifications(true);
     }
 
+    public void setLockscreenDoubleTapToSleep(boolean isDoubleTapEnabled) {
+        mIsLockscreenDoubleTapEnabled = isDoubleTapEnabled
+    }
+
+    public void setAlpha(float alpha) {
+        mView.setAlpha(alpha);
+    }
+
     public void resetTranslation() {
         mView.setTranslationX(0f);
     }
@@ -3380,6 +3407,7 @@ public final class NotificationPanelViewController implements Dumpable {
     TouchHandler getTouchHandler() {
         return mTouchHandler;
     }
+
 
     public NotificationStackScrollLayoutController getNotificationStackScrollLayoutController() {
         return mNotificationStackScrollLayoutController;
@@ -4820,6 +4848,12 @@ public final class NotificationPanelViewController implements Dumpable {
             if (mLastEventSynthesizedDown && event.getAction() == MotionEvent.ACTION_UP) {
                 expand(true /* animate */);
             }
+
+            if (mIsLockscreenDoubleTapEnabled && !mPulsing && !mDozing
+                    && mStatusBarState == StatusBarState.KEYGUARD) {
+                mLockscreenDoubleTapToSleep.onTouchEvent(event);
+            }
+
             initDownStates(event);
 
             // If pulse is expanding already, let's give it the touch. There are situations
