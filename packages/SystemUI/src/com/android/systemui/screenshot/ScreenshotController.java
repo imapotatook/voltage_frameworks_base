@@ -39,6 +39,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
+import android.app.ActivityTaskManager;
 import android.app.ExitTransitionCoordinator;
 import android.app.ExitTransitionCoordinator.ExitTransitionCallbacks;
 import android.app.ICompatCameraControlCallback;
@@ -50,6 +51,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Insets;
@@ -102,7 +104,8 @@ import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.flags.Flags;
 import com.android.systemui.screenshot.ScreenshotController.SavedImageData.ActionTransition;
 import com.android.systemui.screenshot.TakeScreenshotService.RequestCallback;
-import com.android.systemui.settings.DisplayTracker;
+import com.android.systemui.shared.system.TaskStackChangeListener;
+import com.android.systemui.shared.system.TaskStackChangeListeners;
 import com.android.systemui.util.Assert;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -315,6 +318,37 @@ public class ScreenshotController {
                     | ActivityInfo.CONFIG_SCREEN_LAYOUT
                     | ActivityInfo.CONFIG_ASSETS_PATHS);
 
+    private ComponentName mTaskComponentName;
+    private PackageManager mPm;
+
+    private final TaskStackChangeListener mTaskListener = new TaskStackChangeListener() {
+        @Override
+        public void onTaskStackChanged() {
+            mBgExecutor.execute(() -> updateForegroundTaskSync());
+        }
+    };
+
+    private void updateForegroundTaskSync() {
+        try {
+            final ActivityTaskManager.RootTaskInfo focusedStack =
+                    ActivityTaskManager.getService().getFocusedRootTaskInfo();
+            if (focusedStack != null && focusedStack.topActivity != null) {
+                mTaskComponentName = focusedStack.topActivity;
+            }
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to get foreground task component", e);
+        }
+    }
+
+    private String getForegroundAppLabel() {
+        try {
+            final ActivityInfo ai = mPm.getActivityInfo(mTaskComponentName, 0);
+            return ai.applicationInfo.loadLabel(mPm).toString();
+        } catch (PackageManager.NameNotFoundException e) {
+             return null;
+        }
+    }
+
     @Inject
     ScreenshotController(
             Context context,
@@ -398,137 +432,15 @@ public class ScreenshotController {
         mContext.registerReceiver(mCopyBroadcastReceiver, new IntentFilter(
                         ClipboardOverlayController.COPY_OVERLAY_ACTION),
                 ClipboardOverlayController.SELF_PERMISSION, null, Context.RECEIVER_NOT_EXPORTED);
-    }
 
-    void handleScreenshot(ScreenshotData screenshot, Consumer<Uri> finisher,
-            RequestCallback requestCallback) {
-        Assert.isMainThread();
-        mCurrentRequestCallback = requestCallback;
-        if (screenshot.getType() == WindowManager.TAKE_SCREENSHOT_FULLSCREEN) {
-            Rect bounds = getFullScreenRect();
-            screenshot.setBitmap(
-                    mImageCapture.captureDisplay(mDisplayTracker.getDefaultDisplayId(), bounds));
-            screenshot.setScreenBounds(bounds);
-        }
+        // Grab PackageManager
+        mPm = mContext.getPackageManager();
 
-        if (screenshot.getBitmap() == null) {
-            Log.e(TAG, "handleScreenshot: Screenshot bitmap was null");
-            mNotificationsController.notifyScreenshotError(
-                    R.string.screenshot_failed_to_capture_text);
-            if (mCurrentRequestCallback != null) {
-                mCurrentRequestCallback.reportError();
-            }
-            return;
-        }
+        // Register task stack listener
+        TaskStackChangeListeners.getInstance().registerTaskStackListener(mTaskListener);
 
-        mScreenBitmap = screenshot.getBitmap();
-        String oldPackageName = mPackageName;
-        mPackageName = screenshot.getPackageNameString();
-
-        if (!isUserSetupComplete(Process.myUserHandle())) {
-            Log.w(TAG, "User setup not complete, displaying toast only");
-            // User setup isn't complete, so we don't want to show any UI beyond a toast, as editing
-            // and sharing shouldn't be exposed to the user.
-            saveScreenshotAndToast(screenshot.getUserHandle(), finisher);
-            return;
-        }
-
-        mBroadcastSender.sendBroadcast(new Intent(ClipboardOverlayController.SCREENSHOT_ACTION),
-                ClipboardOverlayController.SELF_PERMISSION);
-
-        mScreenshotTakenInPortrait =
-                mContext.getResources().getConfiguration().orientation == ORIENTATION_PORTRAIT;
-
-        // Optimizations
-        mScreenBitmap.setHasAlpha(false);
-        mScreenBitmap.prepareToDraw();
-
-        prepareViewForNewScreenshot(screenshot, oldPackageName);
-
-        saveScreenshotInWorkerThread(screenshot.getUserHandle(), finisher,
-                this::showUiOnActionsReady, this::showUiOnQuickShareActionReady);
-
-        // The window is focusable by default
-        setWindowFocusable(true);
-        mScreenshotView.requestFocus();
-
-        enqueueScrollCaptureRequest(screenshot.getUserHandle());
-
-        attachWindow();
-
-        boolean showFlash = true;
-        if (screenshot.getType() == WindowManager.TAKE_SCREENSHOT_PROVIDED_IMAGE) {
-            if (screenshot.getScreenBounds() != null
-                    && aspectRatiosMatch(screenshot.getBitmap(), screenshot.getInsets(),
-                            screenshot.getScreenBounds())) {
-                showFlash = false;
-            } else {
-                showFlash = true;
-                screenshot.setInsets(Insets.NONE);
-                screenshot.setScreenBounds(new Rect(0, 0, screenshot.getBitmap().getWidth(),
-                        screenshot.getBitmap().getHeight()));
-            }
-        }
-
-        prepareAnimation(screenshot.getScreenBounds(), showFlash, () -> {
-            if (mFlags.isEnabled(SCREENSHOT_WORK_PROFILE_POLICY)) {
-                mMessageContainerController.onScreenshotTaken(screenshot);
-            }
-        });
-
-        if (mFlags.isEnabled(SCREENSHOT_WORK_PROFILE_POLICY)) {
-            mScreenshotView.badgeScreenshot(mContext.getPackageManager().getUserBadgedIcon(
-                    mContext.getDrawable(R.drawable.overlay_badge_background),
-                    screenshot.getUserHandle()));
-        }
-        mScreenshotView.setScreenshot(screenshot);
-
-        if (mFlags.isEnabled(Flags.SCREENSHOT_METADATA) && screenshot.getTaskId() >= 0) {
-            mAssistContentRequester.requestAssistContent(screenshot.getTaskId(),
-                    new AssistContentRequester.Callback() {
-                        @Override
-                        public void onAssistContentAvailable(AssistContent assistContent) {
-                            screenshot.setContextUrl(assistContent.getWebUri());
-                        }
-                    });
-        }
-
-        // ignore system bar insets for the purpose of window layout
-        mWindow.getDecorView().setOnApplyWindowInsetsListener(
-                (v, insets) -> WindowInsets.CONSUMED);
-        mScreenshotHandler.cancelTimeout(); // restarted after animation
-    }
-
-    void prepareViewForNewScreenshot(ScreenshotData screenshot, String oldPackageName) {
-        withWindowAttached(() -> {
-            if (mFlags.isEnabled(SCREENSHOT_WORK_PROFILE_POLICY)
-                    && mUserManager.isManagedProfile(screenshot.getUserHandle().getIdentifier())) {
-                mScreenshotView.announceForAccessibility(mContext.getResources().getString(
-                        R.string.screenshot_saving_work_profile_title));
-            } else {
-                mScreenshotView.announceForAccessibility(
-                        mContext.getResources().getString(R.string.screenshot_saving_title));
-            }
-        });
-
-        mScreenshotView.reset();
-
-        if (mScreenshotView.isAttachedToWindow()) {
-            // if we didn't already dismiss for another reason
-            if (!mScreenshotView.isDismissing()) {
-                mUiEventLogger.log(ScreenshotEvent.SCREENSHOT_REENTERED, 0,
-                        oldPackageName);
-            }
-            if (DEBUG_WINDOW) {
-                Log.d(TAG, "saveScreenshot: screenshotView is already attached, resetting. "
-                        + "(dismissing=" + mScreenshotView.isDismissing() + ")");
-            }
-        }
-
-        mScreenshotView.setPackageName(mPackageName);
-
-        mScreenshotView.updateOrientation(
-                mWindowManager.getCurrentWindowMetrics().getWindowInsets());
+        // Initialize current foreground package name
+        updateForegroundTaskSync();
     }
 
     @MainThread
@@ -955,6 +867,7 @@ public class ScreenshotController {
                 return;
             }
 
+            mLongScreenshotHolder.setForegroundAppName(getForegroundAppLabel());
             mLongScreenshotHolder.setLongScreenshot(longScreenshot);
             mLongScreenshotHolder.setTransitionDestinationCallback(
                     (transitionDestination, onTransitionEnd) -> {
@@ -1186,7 +1099,7 @@ public class ScreenshotController {
         mSaveInBgTask = new SaveImageInBackgroundTask(mContext, mFlags, mImageExporter,
                 mScreenshotSmartActions, data, getActionTransitionSupplier(),
                 mScreenshotNotificationSmartActionsProvider);
-        mSaveInBgTask.execute();
+        mSaveInBgTask.execute(getForegroundAppLabel());
     }
 
 
