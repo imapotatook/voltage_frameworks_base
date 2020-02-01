@@ -633,6 +633,25 @@ public class QSTileHost implements QSHost, Tunable, PluginListener<QSFactory>, P
         return tiles;
     }
 
+    /**
+     * Returns the default QS tiles for the context.
+     * @param context the context to obtain the resources from
+     * @return a list of specs of the default tiles
+     */
+    public static List<String> getDefaultSpecs(Context context) {
+        final ArrayList<String> tiles = new ArrayList<String>();
+
+        final Resources res = context.getResources();
+        final String defaultTileList = res.getString(R.string.quick_settings_tiles_default);
+
+        tiles.addAll(Arrays.asList(defaultTileList.split(",")));
+        if (Build.IS_ENG
+                && GarbageMonitor.ADD_MEMORY_TILE_TO_DEFAULT_ON_DEBUGGABLE_BUILDS) {
+            tiles.add(GarbageMonitor.MemoryTile.TILE_SPEC);
+        }
+        return tiles;
+    }
+
     @Override
     public void dump(PrintWriter pw, String[] args) {
         pw.println("QSTileHost:");
