@@ -18,8 +18,12 @@ import static android.app.StatusBarManager.DISABLE2_QUICK_SETTINGS;
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Color;
+import android.graphics.Rect;
+import android.provider.AlarmClock;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -27,6 +31,13 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.android.systemui.R;
+import com.android.systemui.battery.BatteryMeterView;
+import com.android.systemui.plugins.ActivityStarter;
+import com.android.systemui.statusbar.phone.StatusBarContentInsetsProvider;
+import com.android.systemui.statusbar.phone.StatusBarIconController.TintedIconManager;
+import com.android.systemui.statusbar.phone.StatusIconContainer;
+import com.android.systemui.statusbar.policy.Clock;
+import com.android.systemui.statusbar.policy.VariableDateView;
 import com.android.systemui.util.LargeScreenUtils;
 
 /**
@@ -38,16 +49,60 @@ public class QuickStatusBarHeader extends FrameLayout {
     private boolean mExpanded;
     private boolean mQsDisabled;
 
+    @Nullable
+    private TouchAnimator mAlphaAnimator;
+    @Nullable
+    private TouchAnimator mTranslationAnimator;
+    @Nullable
+    private TouchAnimator mIconsAlphaAnimator;
+    private TouchAnimator mIconsAlphaAnimatorFixed;
+
+    private final ActivityStarter mActivityStarter;
+
     protected QuickQSPanel mHeaderQsPanel;
 
     public QuickStatusBarHeader(Context context, AttributeSet attrs) {
         super(context, attrs);
+        mActivityStarter = Dependency.get(ActivityStarter.class);
+    }
+
+    /**
+     * How much the view containing the clock and QQS will translate down when QS is fully expanded.
+     *
+     * This matches the measured height of the view containing the date and privacy icons.
+     */
+    public int getOffsetTranslation() {
+        return mTopViewMeasureHeight;
     }
 
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
         mHeaderQsPanel = findViewById(R.id.quick_qs_panel);
+        mDatePrivacyView = findViewById(R.id.quick_status_bar_date_privacy);
+        mStatusIconsView = findViewById(R.id.quick_qs_status_icons);
+        mQSCarriers = findViewById(R.id.carrier_group);
+        mContainer = findViewById(R.id.qs_container);
+        mIconContainer = findViewById(R.id.statusIcons);
+        mPrivacyChip = findViewById(R.id.privacy_chip);
+        mDateView = findViewById(R.id.date);
+        mClockDateView = findViewById(R.id.date_clock);
+        mClockIconsSeparator = findViewById(R.id.separator);
+        mRightLayout = findViewById(R.id.rightLayout);
+        mDateContainer = findViewById(R.id.date_container);
+        mPrivacyContainer = findViewById(R.id.privacy_container);
+
+        mClockContainer = findViewById(R.id.clock_container);
+        mClockView = findViewById(R.id.clock);
+        mClockView.setOnClickListener(
+                v -> mActivityStarter.postStartActivityDismissingKeyguard(
+                        new Intent(AlarmClock.ACTION_SHOW_ALARMS), 0));
+        mDatePrivacySeparator = findViewById(R.id.space);
+        // Tint for the battery icons are handled in setupHost()
+        mBatteryRemainingIcon = findViewById(R.id.batteryRemainingIcon);
+        mBatteryRemainingIcon.setOnClickListener(
+                v -> mActivityStarter.postStartActivityDismissingKeyguard(
+                        new Intent(Intent.ACTION_POWER_USAGE_SUMMARY), 0));
 
         updateResources();
         Configuration config = mContext.getResources().getConfiguration();
