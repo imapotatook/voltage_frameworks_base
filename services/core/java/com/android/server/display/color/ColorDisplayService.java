@@ -107,6 +107,11 @@ public final class ColorDisplayService extends SystemService {
         Matrix.setIdentityM(MATRIX_IDENTITY, 0);
     }
 
+    /**
+     * The transition time, in milliseconds, for Night Display to turn on/off.
+     */
+    private static final long TRANSITION_DURATION = 10000L;
+
     private static final int MSG_USER_CHANGED = 0;
     private static final int MSG_SET_UP = 1;
     private static final int MSG_APPLY_NIGHT_DISPLAY_IMMEDIATE = 2;
