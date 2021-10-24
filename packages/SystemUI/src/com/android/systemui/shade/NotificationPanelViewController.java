@@ -403,8 +403,10 @@ public final class NotificationPanelViewController implements Dumpable {
     private GestureRecorder mGestureRecorder;
     private boolean mQsTracking;
 
-    private GestureDetector mLockscreenDoubleTapToSleep;
+    private GestureDetector mDoubleTapToSleepGesture;
     private boolean mIsLockscreenDoubleTapEnabled;
+    private int mStatusBarHeaderHeight;
+	protected boolean mIsSbDoubleTapEnabled;
 	
     /** Whether the ongoing gesture might both trigger the expansion in both the view and QS. */
     private boolean mConflictingQsExpansionGesture;
@@ -952,11 +954,11 @@ public final class NotificationPanelViewController implements Dumpable {
         mAlternateBouncerInteractor = alternateBouncerInteractor;
         dumpManager.registerDumpable(this);
 	
-        mLockscreenDoubleTapToSleep = new GestureDetector(context,
+        mDoubleTapToSleepGesture = new GestureDetector(mView.getContext(),
                 new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDoubleTap(MotionEvent e) {
-                VoltageUtils.switchScreenOff(context);
+                VoltageUtils.switchScreenOff(mView.getContext());
                 return true;
             }
         });
@@ -1168,14 +1170,8 @@ public final class NotificationPanelViewController implements Dumpable {
                 R.dimen.dreaming_to_lockscreen_transition_lockscreen_translation_y);
         mOccludedToLockscreenTransitionTranslationY = mResources.getDimensionPixelSize(
                 R.dimen.occluded_to_lockscreen_transition_lockscreen_translation_y);
-        mLockscreenToDreamingTransitionTranslationY = mResources.getDimensionPixelSize(
-                R.dimen.lockscreen_to_dreaming_transition_lockscreen_translation_y);
-        mGoneToDreamingTransitionTranslationY = mResources.getDimensionPixelSize(
-                R.dimen.gone_to_dreaming_transition_lockscreen_translation_y);
-        mLockscreenToOccludedTransitionTranslationY = mResources.getDimensionPixelSize(
-                R.dimen.lockscreen_to_occluded_transition_lockscreen_translation_y);
-        // TODO (b/265193930): remove this and make QsController listen to NotificationPanelViews
-        mQsController.loadDimens();
+        mStatusBarHeaderHeight = mResources.getDimensionPixelSize(
+                R.dimen.status_bar_height);
     }
 
     private void updateViewControllers(KeyguardStatusView keyguardStatusView,
@@ -3357,7 +3353,11 @@ public final class NotificationPanelViewController implements Dumpable {
     }
 
     public void setLockscreenDoubleTapToSleep(boolean isDoubleTapEnabled) {
-        mIsLockscreenDoubleTapEnabled = isDoubleTapEnabled
+        mIsLockscreenDoubleTapEnabled = isDoubleTapEnabled;
+    }
+
+    public void setSbDoubleTapToSleep(boolean isDoubleTapEnabled) {
+        mIsSbDoubleTapEnabled = isDoubleTapEnabled;
     }
 
     public void setAlpha(float alpha) {
@@ -3407,7 +3407,6 @@ public final class NotificationPanelViewController implements Dumpable {
     TouchHandler getTouchHandler() {
         return mTouchHandler;
     }
-
 
     public NotificationStackScrollLayoutController getNotificationStackScrollLayoutController() {
         return mNotificationStackScrollLayoutController;
@@ -4849,9 +4848,11 @@ public final class NotificationPanelViewController implements Dumpable {
                 expand(true /* animate */);
             }
 
-            if (mIsLockscreenDoubleTapEnabled && !mPulsing && !mDozing
-                    && mStatusBarState == StatusBarState.KEYGUARD) {
-                mLockscreenDoubleTapToSleep.onTouchEvent(event);
+            if ((mIsLockscreenDoubleTapEnabled && !mPulsing && !mDozing
+                    && mBarState == StatusBarState.KEYGUARD) ||
+                    (!mQsExpanded && mIsSbDoubleTapEnabled
+                    && event.getY() < mStatusBarHeaderHeight)) {
+                mDoubleTapToSleepGesture.onTouchEvent(event);
             }
 
             initDownStates(event);
@@ -4972,7 +4973,7 @@ public final class NotificationPanelViewController implements Dumpable {
                         onTrackingStarted();
                     }
                     if (isFullyCollapsed() && !mHeadsUpManager.hasPinnedHeadsUp()
-                            && !mCentralSurfaces.isBouncerShowing()) {
+                            && !mCentralSurfaces.isBouncerShowing() && !mIsSbDoubleTapEnabled) {
                         startOpening(event);
                     }
                     break;
