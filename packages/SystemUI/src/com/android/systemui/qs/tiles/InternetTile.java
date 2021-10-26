@@ -310,24 +310,18 @@ public class InternetTile extends SecureQSTile<SignalState> {
             if (DEBUG) {
                 Log.d(TAG, "setWifiIndicators: " + indicators);
             }
-            synchronized (mWifiInfo) {
-                mWifiInfo.mEnabled = indicators.enabled;
-                mWifiInfo.mSsid = indicators.description;
-                mWifiInfo.mIsTransient = indicators.isTransient;
-                mWifiInfo.mStatusLabel = indicators.statusLabel;
-                if (indicators.qsIcon != null) {
-                    mWifiInfo.mConnected = indicators.qsIcon.visible;
-                    mWifiInfo.mWifiSignalIconId = indicators.qsIcon.icon;
-                    mWifiInfo.mWifiSignalContentDescription = indicators.qsIcon.contentDescription;
-                } else {
-                    mWifiInfo.mConnected = false;
-                    mWifiInfo.mWifiSignalIconId = 0;
-                    mWifiInfo.mWifiSignalContentDescription = null;
-                }
+            mWifiInfo.mEnabled = indicators.enabled;
+            if (indicators.qsIcon == null || !indicators.isDefault) {
+                return;
             }
-            if (indicators.qsIcon != null) {
-                refreshState(mWifiInfo);
-            }
+            mWifiInfo.mConnected = indicators.qsIcon.visible;
+            mWifiInfo.mWifiSignalIconId = indicators.qsIcon.icon;
+            mWifiInfo.mWifiSignalContentDescription = indicators.qsIcon.contentDescription;
+            mWifiInfo.mEnabled = indicators.enabled;
+            mWifiInfo.mSsid = indicators.description;
+            mWifiInfo.mIsTransient = indicators.isTransient;
+            mWifiInfo.mStatusLabel = indicators.statusLabel;
+            refreshState(mWifiInfo);
         }
 
         @Override
@@ -335,7 +329,7 @@ public class InternetTile extends SecureQSTile<SignalState> {
             if (DEBUG) {
                 Log.d(TAG, "setMobileDataIndicators: " + indicators);
             }
-            if (indicators.qsIcon == null) {
+            if (indicators.qsIcon == null || !indicators.isDefault) {
                 // Not data sim, don't display.
                 return;
             }
