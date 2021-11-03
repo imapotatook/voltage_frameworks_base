@@ -6124,16 +6124,13 @@
          different from the home screen wallpaper. -->
     <bool name="config_independentLockscreenLiveWallpaper">false</bool>
 
-    <!-- Whether the vendor power press code need to be mapped. -->
-    <bool name="config_powerPressMapping">false</bool>
+    <!-- The list of components which should be automatically disabled for a specific device.
+     Note: this MUST not be used to randomly disable components, ask for approval first! -->
+    <string-array name="config_deviceDisabledComponents" translatable="false" />
 
-    <!-- Power press vendor code. -->
-    <integer name="config_powerPressCode">-1</integer>
+    <!-- The list of components which should be automatically disabled for all devices. -->
+    <string-array name="config_globallyDisabledComponents" translatable="false" />
 
-    <!-- Whether to show weather on the lock screen by default. -->
-    <bool name="config_lockscreenWeatherEnabledByDefault">false</bool>
-
-    <!-- Whether we should persist the brightness value in nits for the default display even if
-         the underlying display device changes. -->
-    <bool name="config_persistBrightnessNitsForDefaultDisplay">false</bool>
+    <!-- The list of components which should be forced to be enabled. -->
+    <string-array name="config_forceEnabledComponents" translatable="false" />
 </resources>
