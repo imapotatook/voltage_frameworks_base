@@ -16,6 +16,15 @@
 
 package com.android.systemui.qs;
 
+import android.os.Bundle;
+
+import com.android.systemui.R;
+import com.android.systemui.battery.BatteryMeterViewController;
+import com.android.systemui.demomode.DemoMode;
+import com.android.systemui.demomode.DemoModeController;
+import com.android.systemui.flags.FeatureFlags;
+import com.android.systemui.flags.Flags;
+import com.android.systemui.qs.carrier.QSCarrierGroupController;
 import com.android.systemui.qs.dagger.QSScope;
 import com.android.systemui.util.ViewController;
 
@@ -30,12 +39,19 @@ class QuickStatusBarHeaderController extends ViewController<QuickStatusBarHeader
     private final QuickQSPanelController mQuickQSPanelController;
     private boolean mListening;
 
-    private SysuiColorExtractor mColorExtractor;
-
     @Inject
     QuickStatusBarHeaderController(QuickStatusBarHeader view,
-            QuickQSPanelController quickQSPanelController
-    ) {
+            HeaderPrivacyIconsController headerPrivacyIconsController,
+            StatusBarIconController statusBarIconController,
+            DemoModeController demoModeController,
+            QuickQSPanelController quickQSPanelController,
+            QSCarrierGroupController.Builder qsCarrierGroupControllerBuilder,
+            QSExpansionPathInterpolator qsExpansionPathInterpolator,
+            FeatureFlags featureFlags,
+            VariableDateViewController.Factory variableDateViewControllerFactory,
+            BatteryMeterViewController batteryMeterViewController,
+            StatusBarContentInsetsProvider statusBarContentInsetsProvider,
+            StatusBarIconController.TintedIconManager.Factory tintedIconManagerFactory) {
         super(view);
         mQuickQSPanelController = quickQSPanelController;
         mQSExpansionPathInterpolator = qsExpansionPathInterpolator;
@@ -57,7 +73,6 @@ class QuickStatusBarHeaderController extends ViewController<QuickStatusBarHeader
 
         mIconManager = tintedIconManagerFactory.create(mIconContainer, StatusBarLocation.QS);
         mDemoModeReceiver = new ClockDemoModeReceiver(mClockView);
-        mColorExtractor = colorExtractor;
 
         // Don't need to worry about tuner settings for this icon
         mBatteryMeterViewController.ignoreTunerUpdates();
