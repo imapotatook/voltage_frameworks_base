@@ -107,6 +107,33 @@ public class QuickStatusBarHeader extends FrameLayout {
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         updateResources();
+        setDatePrivacyContainersWidth(newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE);
+    }
+
+    @Override
+    public void onRtlPropertiesChanged(int layoutDirection) {
+        super.onRtlPropertiesChanged(layoutDirection);
+        updateResources();
+    }
+
+    private void setDatePrivacyContainersWidth(boolean landscape) {
+        LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) mDateContainer.getLayoutParams();
+        lp.width = landscape ? WRAP_CONTENT : 0;
+        lp.weight = landscape ? 0f : 1f;
+        mDateContainer.setLayoutParams(lp);
+
+        lp = (LinearLayout.LayoutParams) mPrivacyContainer.getLayoutParams();
+        lp.width = landscape ? WRAP_CONTENT : 0;
+        lp.weight = landscape ? 0f : 1f;
+        mPrivacyContainer.setLayoutParams(lp);
+    }
+
+    private void updateBatteryMode() {
+        if (mConfigShowBatteryEstimate) {
+            mBatteryRemainingIcon.setPercentShowMode(BatteryMeterView.MODE_ESTIMATE);
+        } else {
+            mBatteryRemainingIcon.setPercentShowMode(BatteryMeterView.MODE_ON);
+        }
     }
 
     @Override
