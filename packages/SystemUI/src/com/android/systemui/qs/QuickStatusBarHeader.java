@@ -61,6 +61,8 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
 
     private static final String SHOW_QS_CLOCK =
             "system:" + Settings.System.SHOW_QS_CLOCK;
+    private static final String SHOW_QS_DATE =
+            "system:" + Settings.System.SHOW_QS_DATE;
 
     private boolean mExpanded;
     private boolean mQsDisabled;
@@ -117,6 +119,7 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
     private boolean mConfigShowBatteryEstimate;
 
     private boolean mUseCombinedQSHeader;
+    private boolean mShowDate;
 
     private final ActivityStarter mActivityStarter;
     private final Vibrator mVibrator;
@@ -182,7 +185,8 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
 
         Dependency.get(TunerService.class).addTunable(this,
                 StatusBarIconController.ICON_HIDE_LIST,
-                SHOW_QS_CLOCK);
+                SHOW_QS_CLOCK,
+                SHOW_QS_DATE);
     }
 
     void onAttach(TintedIconManager iconManager,
@@ -290,6 +294,106 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
                     .getDimensionPixelSize(R.dimen.large_screen_shade_header_min_height);
         }
         mHeaderQsPanel.setLayoutParams(qqsLP);
+
+        updateBatteryMode();
+        updateHeadersPadding();
+        updateAnimators();
+
+        updateClockDatePadding();
+    }
+
+    private void updateClockDatePadding() {
+        int startPadding = mContext.getResources()
+                .getDimensionPixelSize(R.dimen.status_bar_left_clock_starting_padding);
+        int endPadding = mContext.getResources()
+                .getDimensionPixelSize(R.dimen.status_bar_left_clock_end_padding);
+        mClockView.setPaddingRelative(
+                startPadding,
+                mClockView.getPaddingTop(),
+                endPadding,
+                mClockView.getPaddingBottom()
+        );
+
+        MarginLayoutParams lp = (MarginLayoutParams) mClockDateView.getLayoutParams();
+        lp.setMarginStart(endPadding);
+        mClockDateView.setLayoutParams(lp);
+    }
+
+    private void updateAnimators() {
+        if (mUseCombinedQSHeader) {
+            mTranslationAnimator = null;
+            return;
+        }
+        updateAlphaAnimator();
+        int offset = mTopViewMeasureHeight;
+
+        mTranslationAnimator = new TouchAnimator.Builder()
+                .addFloat(mContainer, "translationY", 0, offset)
+                .setInterpolator(mQSExpansionPathInterpolator != null
+                        ? mQSExpansionPathInterpolator.getYInterpolator()
+                        : null)
+                .build();
+    }
+
+    private void updateAlphaAnimator() {
+        if (mUseCombinedQSHeader) {
+            mAlphaAnimator = null;
+            return;
+        }
+        TouchAnimator.Builder builder = new TouchAnimator.Builder()
+                // These views appear on expanding down
+                .addFloat(mDateView, "alpha", 0, 0, 1)
+                .addFloat(mClockDateView, "alpha", 1, 0, 0)
+                .addFloat(mQSCarriers, "alpha", 0, 1)
+                .setListener(new TouchAnimator.ListenerAdapter() {
+                    @Override
+                    public void onAnimationAtEnd() {
+                        super.onAnimationAtEnd();
+                        if (!mIsSingleCarrier) {
+                            mIconContainer.addIgnoredSlots(mRssiIgnoredSlots);
+                        }
+                        // Make it gone so there's enough room for carrier names
+                        mClockDateView.setVisibility(View.GONE);
+                    }
+
+                    @Override
+                    public void onAnimationStarted() {
+                        if (mShowDate) {
+                            mClockDateView.setVisibility(View.VISIBLE);
+                            mClockDateView.setFreezeSwitching(true);
+                        }
+                        setSeparatorVisibility(false);
+                        if (!mIsSingleCarrier) {
+                            mIconContainer.addIgnoredSlots(mRssiIgnoredSlots);
+                        }
+                    }
+
+                    @Override
+                    public void onAnimationAtStart() {
+                        super.onAnimationAtStart();
+                        if (mShowDate) {
+                            mClockDateView.setFreezeSwitching(false);
+                            mClockDateView.setVisibility(View.VISIBLE);
+                        }
+                        setSeparatorVisibility(mShowClockIconsSeparator);
+                        // In QQS we never ignore RSSI.
+                        mIconContainer.removeIgnoredSlots(mRssiIgnoredSlots);
+                    }
+                });
+        mAlphaAnimator = builder.build();
+    }
+
+    void setChipVisibility(boolean visibility) {
+        if (visibility) {
+            // Animates the icons and battery indicator from alpha 0 to 1, when the chip is visible
+            mIconsAlphaAnimator = mIconsAlphaAnimatorFixed;
+            mIconsAlphaAnimator.setPosition(mKeyguardExpansionFraction);
+        } else {
+            mIconsAlphaAnimator = null;
+            mIconContainer.setAlpha(1);
+            mBatteryRemainingIcon.setAlpha(1);
+        }
+
     }
 
     public void setExpanded(boolean expanded, QuickQSPanelController quickQSPanelController) {
@@ -330,6 +434,12 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
                 boolean showClock =
                         TunerService.parseIntegerSwitch(newValue, true);
                 mClockView.setClockVisibleByUser(showClock);
+                break;
+            case SHOW_QS_DATE:
+                mShowDate =
+                        TunerService.parseIntegerSwitch(newValue, true);
+                mDateContainer.setVisibility(mShowDate ? View.VISIBLE : View.GONE);
+                mClockDateView.setVisibility(mShowDate ? View.VISIBLE : View.GONE);
                 break;
             default:
                 break;
