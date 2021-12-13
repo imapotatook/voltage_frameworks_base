@@ -103,6 +103,12 @@ public interface QSFragmentModule {
 
     /** */
     @Provides
+    static BatteryMeterView providesBatteryMeterView(QuickStatusBarHeader quickStatusBarHeader) {
+        return quickStatusBarHeader.getBatteryMeterView();
+    }
+
+    /** */
+    @Provides
     static QSFooterView providesQSFooterView(@RootView View view) {
         return view.findViewById(R.id.qs_footer);
     }
