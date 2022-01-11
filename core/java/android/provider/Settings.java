@@ -11537,6 +11537,13 @@ public final class Settings {
          */
         public static final String TORCH_LONG_PRESS_POWER = "torch_long_press_power";
 
+	/**
+         * Whether to disable qs on secure lockscreen.
+         * Default 0
+         * @hide
+         */
+        public static final String SECURE_LOCKSCREEN_QS_DISABLED = "secure_lockscreen_qs_disabled";
+
         /**
          * Whether lockscreen weather is enabled.
          *
