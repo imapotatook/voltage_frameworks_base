@@ -388,10 +388,12 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
             // Animates the icons and battery indicator from alpha 0 to 1, when the chip is visible
             mIconsAlphaAnimator = mIconsAlphaAnimatorFixed;
             mIconsAlphaAnimator.setPosition(mKeyguardExpansionFraction);
+            mBatteryRemainingIcon.setClickable(!visibility || mKeyguardExpansionFraction == 1f);
         } else {
             mIconsAlphaAnimator = null;
             mIconContainer.setAlpha(1);
             mBatteryRemainingIcon.setAlpha(1);
+            mBatteryRemainingIcon.setClickable(true);
         }
 
     }
@@ -400,6 +402,42 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
         if (mExpanded == expanded) return;
         mExpanded = expanded;
         quickQSPanelController.setExpanded(expanded);
+        updateEverything();
+    }
+
+    /**
+     * Animates the inner contents based on the given expansion details.
+     *
+     * @param forceExpanded whether we should show the state expanded forcibly
+     * @param expansionFraction how much the QS panel is expanded/pulled out (up to 1f)
+     * @param panelTranslationY how much the panel has physically moved down vertically (required
+     *                          for keyguard animations only)
+     */
+    public void setExpansion(boolean forceExpanded, float expansionFraction,
+                             float panelTranslationY) {
+        final float keyguardExpansionFraction = forceExpanded ? 1f : expansionFraction;
+
+        if (mAlphaAnimator != null) {
+            mAlphaAnimator.setPosition(keyguardExpansionFraction);
+        }
+        if (mTranslationAnimator != null) {
+            mTranslationAnimator.setPosition(keyguardExpansionFraction);
+        }
+        if (mIconsAlphaAnimator != null) {
+            mIconsAlphaAnimator.setPosition(keyguardExpansionFraction);
+        }
+        if (keyguardExpansionFraction == 1f && mBatteryRemainingIcon != null) {
+            mBatteryRemainingIcon.setClickable(true);
+        }
+        // If forceExpanded (we are opening QS from lockscreen), the animators have been set to
+        // position = 1f.
+        if (forceExpanded) {
+            setAlpha(expansionFraction);
+        } else {
+            setAlpha(1);
+        }
+
+        mKeyguardExpansionFraction = keyguardExpansionFraction;
     }
 
     public void disable(int state1, int state2, boolean animate) {
