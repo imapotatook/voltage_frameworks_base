@@ -298,12 +298,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     private BackgroundBlurDrawable mDialogRowsViewBackground;
     private final InteractionJankMonitor mInteractionJankMonitor;
 
-    private boolean mSeparateNotification;
-
-    @VisibleForTesting
-    int mVolumeRingerIconDrawableId;
-    @VisibleForTesting
-    int mVolumeRingerMuteIconDrawableId;
+    // Variable to track the default row with which the panel is initially shown
+    private VolumeRow mDefaultRow = null;
 
     public VolumeDialogImpl(
             Context context,
@@ -1541,6 +1537,10 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             mConfigChanged = false;
         }
 
+        if (mDefaultRow == null) {
+            mDefaultRow = getActiveRow();
+        }
+
         initSettingsH(lockTaskModeState);
         mShowing = true;
         mIsAnimatingDismiss = false;
@@ -1613,6 +1613,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                     mController.notifyVisible(false);
                     mDialog.dismiss();
                     tryToRemoveCaptionsTooltip();
+                    mDefaultRow = null;
                     mIsAnimatingDismiss = false;
 
                     hideRingerDrawer();
@@ -1656,10 +1657,13 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 return true;
             }
 
-            if (row.defaultStream) {
+            // if the row is the default stream or the row with which this panel was created,
+            // show it additonally to the active row if it is one of the following streams
+            if (row.defaultStream || mDefaultRow == row) {
                 return activeRow.stream == STREAM_RING
                         || activeRow.stream == STREAM_ALARM
                         || activeRow.stream == STREAM_VOICE_CALL
+                        || activeRow.stream == STREAM_MUSIC
                         || activeRow.stream == STREAM_ACCESSIBILITY
                         || mDynamic.get(activeRow.stream);
             }
