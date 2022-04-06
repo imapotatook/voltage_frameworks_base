@@ -30,12 +30,42 @@ class QuickStatusBarHeaderController extends ViewController<QuickStatusBarHeader
     private final QuickQSPanelController mQuickQSPanelController;
     private boolean mListening;
 
+    private SysuiColorExtractor mColorExtractor;
+
     @Inject
     QuickStatusBarHeaderController(QuickStatusBarHeader view,
             QuickQSPanelController quickQSPanelController
     ) {
         super(view);
         mQuickQSPanelController = quickQSPanelController;
+        mQSExpansionPathInterpolator = qsExpansionPathInterpolator;
+        mFeatureFlags = featureFlags;
+        mBatteryMeterViewController = batteryMeterViewController;
+        mInsetsProvider = statusBarContentInsetsProvider;
+
+        mQSCarrierGroupController = qsCarrierGroupControllerBuilder
+                .setQSCarrierGroup(mView.findViewById(R.id.carrier_group))
+                .build();
+        mClockView = mView.findViewById(R.id.clock);
+        mIconContainer = mView.findViewById(R.id.statusIcons);
+        mVariableDateViewControllerDateView = variableDateViewControllerFactory.create(
+                mView.requireViewById(R.id.date)
+        );
+        mVariableDateViewControllerClockDateView = variableDateViewControllerFactory.create(
+                mView.requireViewById(R.id.date_clock)
+        );
+
+        mIconManager = tintedIconManagerFactory.create(mIconContainer, StatusBarLocation.QS);
+        mDemoModeReceiver = new ClockDemoModeReceiver(mClockView);
+        mColorExtractor = colorExtractor;
+
+        // Don't need to worry about tuner settings for this icon
+        mBatteryMeterViewController.ignoreTunerUpdates();
+    }
+
+    @Override
+    protected void onInit() {
+        mBatteryMeterViewController.init();
     }
 
     @Override
@@ -44,6 +74,10 @@ class QuickStatusBarHeaderController extends ViewController<QuickStatusBarHeader
 
     @Override
     protected void onViewDetached() {
+        mPrivacyIconsController.onParentInvisible();
+        mStatusBarIconController.removeIconGroup(mIconManager);
+        mQSCarrierGroupController.setOnSingleCarrierChangedListener(null);
+        mDemoModeController.removeCallback(mDemoModeReceiver);
         setListening(false);
     }
 
