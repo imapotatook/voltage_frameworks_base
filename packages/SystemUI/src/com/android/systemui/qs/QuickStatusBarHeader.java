@@ -50,6 +50,57 @@ public class QuickStatusBarHeader extends FrameLayout {
         mHeaderQsPanel = findViewById(R.id.quick_qs_panel);
 
         updateResources();
+        Configuration config = mContext.getResources().getConfiguration();
+        setDatePrivacyContainersWidth(config.orientation == Configuration.ORIENTATION_LANDSCAPE);
+
+        // QS will always show the estimate, and BatteryMeterView handles the case where
+        // it's unavailable or charging
+        mBatteryRemainingIcon.setPercentShowMode(BatteryMeterView.MODE_ESTIMATE);
+
+        mIconsAlphaAnimatorFixed = new TouchAnimator.Builder()
+                .addFloat(mIconContainer, "alpha", 0, 1)
+                .addFloat(mBatteryRemainingIcon, "alpha", 0, 1)
+                .build();
+    }
+
+    void onAttach(TintedIconManager iconManager,
+            QSExpansionPathInterpolator qsExpansionPathInterpolator,
+            List<String> rssiIgnoredSlots,
+            StatusBarContentInsetsProvider insetsProvider,
+            boolean useCombinedQSHeader) {
+        mUseCombinedQSHeader = useCombinedQSHeader;
+        mTintedIconManager = iconManager;
+        mRssiIgnoredSlots = rssiIgnoredSlots;
+        mInsetsProvider = insetsProvider;
+        int fillColor = Utils.getColorAttrDefaultColor(getContext(),
+                android.R.attr.textColorPrimary);
+
+        // Set the correct tint for the status icons so they contrast
+        iconManager.setTint(fillColor);
+
+        mQSExpansionPathInterpolator = qsExpansionPathInterpolator;
+        updateAnimators();
+    }
+
+    void setIsSingleCarrier(boolean isSingleCarrier) {
+        mIsSingleCarrier = isSingleCarrier;
+        if (mIsSingleCarrier) {
+            mIconContainer.removeIgnoredSlots(mRssiIgnoredSlots);
+        }
+        updateAlphaAnimator();
+    }
+
+    public QuickQSPanel getHeaderQsPanel() {
+        return mHeaderQsPanel;
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        if (mDatePrivacyView.getMeasuredHeight() != mTopViewMeasureHeight) {
+            mTopViewMeasureHeight = mDatePrivacyView.getMeasuredHeight();
+            post(this::updateAnimators);
+        }
     }
 
     @Override
