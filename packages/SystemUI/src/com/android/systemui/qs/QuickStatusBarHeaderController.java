@@ -112,4 +112,34 @@ class QuickStatusBarHeaderController extends ViewController<QuickStatusBarHeader
     public void setContentMargins(int marginStart, int marginEnd) {
         mQuickQSPanelController.setContentMargins(marginStart, marginEnd);
     }
+
+    private static class ClockDemoModeReceiver implements DemoMode {
+        private Clock mClockView;
+
+        @Override
+        public List<String> demoCommands() {
+            return List.of(COMMAND_CLOCK);
+        }
+
+        ClockDemoModeReceiver(Clock clockView) {
+            mClockView = clockView;
+        }
+
+        @Override
+        public void dispatchDemoCommand(String command, Bundle args) {
+            mClockView.dispatchDemoCommand(command, args);
+        }
+
+        @Override
+        public void onDemoModeStarted() {
+            if (mClockView != null) {
+                mClockView.onDemoModeStarted();
+            }
+        }
+
+        @Override
+        public void onDemoModeFinished() {
+            mClockView.onDemoModeFinished();
+        }
+    }
 }
