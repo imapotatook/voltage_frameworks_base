@@ -100,6 +100,7 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
     private final long mLockScreenDisplayTimeout;
     private final float mKeyguardPreferredRefreshRate; // takes precedence over max
     private final float mKeyguardMaxRefreshRate;
+    private final float mAODMaxRefreshRate;
     private final KeyguardViewMediator mKeyguardViewMediator;
     private final KeyguardBypassController mKeyguardBypassController;
     private final AuthController mAuthController;
@@ -185,6 +186,11 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
         // know that we're not falsing (because we unlocked.)
         mKeyguardMaxRefreshRate = context.getResources()
                 .getInteger(R.integer.config_keyguardMaxRefreshRate);
+
+        // Same as described above but limited to AOD
+        // Allows using a different rate for each
+        mAODMaxRefreshRate = context.getResources()
+                .getInteger(R.integer.config_aodMaxRefreshRate);
     }
 
     /**
@@ -300,10 +306,11 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
         mNotificationShadeView.setSystemUiVisibility(vis);
     }
 
-    private void applyKeyguardFlags(NotificationShadeWindowState state) {
-        final boolean keyguardOrAod = state.keyguardShowing
-                || (state.dozing && mDozeParameters.getAlwaysOn());
-        if ((keyguardOrAod && !state.mediaBackdropShowing && !state.lightRevealScrimOpaque)
+    private void applyKeyguardFlags(State state) {
+        final boolean keyguardOrAod = state.mKeyguardShowing
+                || (state.mDozing && mDozeParameters.getAlwaysOn());
+        boolean wasKeyguardRateSet = false;
+        if ((keyguardOrAod && !state.mBackdropShowing && !state.mLightRevealScrimOpaque)
                 || mKeyguardViewMediator.isAnimatingBetweenKeyguardAndSurfaceBehind()) {
             // Show the wallpaper if we're on keyguard/AOD and the wallpaper is not occluded by a
             // solid backdrop. Also, show it if we are currently animating between the
@@ -327,7 +334,7 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
                     && mAuthController.isUdfpsEnrolled(KeyguardUpdateMonitor.getCurrentUser())) {
                 // both max and min display refresh rate must be set to take effect:
                 mLpChanged.preferredMaxDisplayRefreshRate = mKeyguardPreferredRefreshRate;
-                mLpChanged.preferredMinDisplayRefreshRate = mKeyguardPreferredRefreshRate;
+                wasKeyguardRateSet = true;
             } else {
                 mLpChanged.preferredMaxDisplayRefreshRate = 0;
                 mLpChanged.preferredMinDisplayRefreshRate = 0;
@@ -340,6 +347,7 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
                     && !state.keyguardFadingAway && !state.keyguardGoingAway;
             if (state.dozing || bypassOnKeyguard) {
                 mLpChanged.preferredMaxDisplayRefreshRate = mKeyguardMaxRefreshRate;
+                wasKeyguardRateSet = true;
             } else {
                 mLpChanged.preferredMaxDisplayRefreshRate = 0;
             }
@@ -347,7 +355,20 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
                     (long) mLpChanged.preferredMaxDisplayRefreshRate);
         }
 
-        if (state.bouncerShowing && !isDebuggable()) {
+        if (mAODMaxRefreshRate > 0) {
+            if (state.mDozing) {
+                // limit on AOD & ambient if we have that set
+                // overrides set max keyguard rate
+                mLpChanged.preferredMaxDisplayRefreshRate = mAODMaxRefreshRate;
+            } else if (!wasKeyguardRateSet) {
+                // un-limit when out, but only if max keyguard rate wasn't set
+                mLpChanged.preferredMaxDisplayRefreshRate = 0;
+            }
+            Trace.setCounter("display_max_refresh_rate",
+                        (long) mLpChanged.preferredMaxDisplayRefreshRate);
+        }
+
+        if (state.mBouncerShowing && !isDebuggable()) {
             mLpChanged.flags |= LayoutParams.FLAG_SECURE;
         } else {
             mLpChanged.flags &= ~LayoutParams.FLAG_SECURE;
@@ -517,38 +538,6 @@ public class NotificationShadeWindowControllerImpl implements NotificationShadeW
             });
         }
         notifyStateChangedCallbacks();
-    }
-
-    private void logState(NotificationShadeWindowState state) {
-        mStateBuffer.insert(
-                state.keyguardShowing,
-                state.keyguardOccluded,
-                state.keyguardNeedsInput,
-                state.panelVisible,
-                state.panelExpanded,
-                state.notificationShadeFocusable,
-                state.bouncerShowing,
-                state.keyguardFadingAway,
-                state.keyguardGoingAway,
-                state.qsExpanded,
-                state.headsUpNotificationShowing,
-                state.lightRevealScrimOpaque,
-                state.forceWindowCollapsed,
-                state.forceDozeBrightness,
-                state.forceUserActivity,
-                state.launchingActivityFromNotification,
-                state.mediaBackdropShowing,
-                state.wallpaperSupportsAmbientMode,
-                state.windowNotTouchable,
-                state.componentsForcingTopUi,
-                state.forceOpenTokens,
-                state.statusBarState,
-                state.remoteInputActive,
-                state.forcePluginOpen,
-                state.dozing,
-                state.scrimsVisibility,
-                state.backgroundBlurRadius
-        );
     }
 
     @Override
