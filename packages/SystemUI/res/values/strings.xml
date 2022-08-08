@@ -2252,18 +2252,6 @@
     <!-- Removed control in management screen [CHAR LIMIT=20] -->
     <string name="controls_removed">Removed</string>
 
-    <!-- Title for the dialog presented to the user to authorize this app to display a Device
-         controls panel (embedded activity) instead of controls rendered by SystemUI [CHAR LIMIT=30] -->
-    <string name="controls_panel_authorization_title">Add <xliff:g id="appName" example="My app">%s</xliff:g>?</string>
-
-    <!-- Shows in a dialog presented to the user to authorize this app to display a Device controls
-         panel (embedded activity) instead of controls rendered by SystemUI [CHAR LIMIT=NONE] -->
-    <string name="controls_panel_authorization"><xliff:g id="appName" example="My app">%s</xliff:g> can choose which controls and content show here.</string>
-
-    <!-- Shows in a dialog presented to the user to authorize this app removal from a Device
-         controls panel [CHAR LIMIT=NONE] -->
-    <string name="controls_panel_remove_app_authorization">Remove controls for <xliff:g example="My app" id="appName">%s</xliff:g>?</string>
-
     <!-- a11y state description for a control that is currently favorited [CHAR LIMIT=NONE] -->
     <string name="accessibility_control_favorite">Favorited</string>
     <!-- a11y state description for a control that is currently favorited with its position [CHAR LIMIT=NONE] -->
@@ -2824,45 +2812,8 @@
     <!-- Title for notification of low stylus battery. [CHAR_LIMIT=NONE] -->
     <string name="stylus_battery_low">Stylus battery low</string>
 
-    <!-- Label for a lock screen shortcut to start the camera in video mode. [CHAR_LIMIT=16] -->
-    <string name="video_camera">Video camera</string>
-
-    <!-- Switch to work profile dialer app for placing a call dialog. -->
-    <!-- Text for Switch to work profile dialog's Title. Switch to work profile dialog guide users to make call from work
-    profile dialer app as it's not possible to make call from current profile due to an admin policy. [CHAR LIMIT=60] -->
-    <string name="call_from_work_profile_title">Can\'t call from this profile</string>
-    <!-- Text for switch to work profile for call dialog to guide users to make call from work
-    profile dialer app as it's not possible to make call from current profile due to an admin policy. [CHAR LIMIT=NONE]
-    -->
-    <string name="call_from_work_profile_text">Your work policy allows you to make phone calls only from the work profile</string>
-    <!-- Label for the button to switch to work profile for placing call. Switch to work profile dialog guide users to make call from work
-    profile dialer app as it's not possible to make call from current profile due to an admin policy.[CHAR LIMIT=60] -->
-    <string name="call_from_work_profile_action">Switch to work profile</string>
-    <!-- Label for the close button on switch to work profile dialog. Switch to work profile dialog guide users to make call from work
-    profile dialer app as it's not possible to make call from current profile due to an admin policy.[CHAR LIMIT=60] -->
-    <string name="call_from_work_profile_close">Close</string>
-
-    <!--
-    Label for a menu item in a menu that is shown when the user wishes to configure the lock screen.
-    Clicking on this menu item takes the user to a screen where they can modify the settings of the
-    lock screen.
-
-    [CHAR LIMIT=32]
-    -->
-    <string name="lock_screen_settings">Lock screen settings</string>
-
-    <!-- Content description for Wi-Fi not available icon on dream [CHAR LIMIT=NONE]-->
-    <string name="wifi_unavailable_dream_overlay_content_description">Wi-Fi not available</string>
-
-    <!-- Content description for camera blocked icon on dream [CHAR LIMIT=NONE] -->
-    <string name="camera_blocked_dream_overlay_content_description">Camera blocked</string>
-
-    <!-- Content description for camera and microphone blocked icon on dream [CHAR LIMIT=NONE] -->
-    <string name="camera_and_microphone_blocked_dream_overlay_content_description">Camera and microphone blocked</string>
-
-    <!-- Content description for camera and microphone disabled icon on dream [CHAR LIMIT=NONE] -->
-    <string name="microphone_blocked_dream_overlay_content_description">Microphone blocked</string>
-
-    <!-- Content description for priority mode icon on dream [CHAR LIMIT=NONE] -->
-    <string name="priority_mode_dream_overlay_content_description">Priority mode on</string>
+    <string name="error_report_title">Error in %1$s</string>
+    <string name="copy_to_clipboard">Copy to clipboard</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="error_share">Share</string>
 </resources>
