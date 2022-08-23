@@ -23,13 +23,20 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.net.Uri;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.AlarmClock;
+import android.provider.CalendarContract;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import com.android.internal.policy.SystemBarUtils;
+import com.android.settingslib.Utils;
+import com.android.systemui.Dependency;
 import com.android.systemui.R;
 import com.android.systemui.battery.BatteryMeterView;
 import com.android.systemui.plugins.ActivityStarter;
@@ -44,7 +51,8 @@ import com.android.systemui.util.LargeScreenUtils;
  * View that contains the top-most bits of the QS panel (primarily the status bar with date, time,
  * battery, carrier info and privacy icons) and also contains the {@link QuickQSPanel}.
  */
-public class QuickStatusBarHeader extends FrameLayout {
+public class QuickStatusBarHeader extends FrameLayout
+        implements View.OnClickListener, View.OnLongClickListener {
 
     private boolean mExpanded;
     private boolean mQsDisabled;
@@ -57,13 +65,58 @@ public class QuickStatusBarHeader extends FrameLayout {
     private TouchAnimator mIconsAlphaAnimator;
     private TouchAnimator mIconsAlphaAnimatorFixed;
 
-    private final ActivityStarter mActivityStarter;
-
     protected QuickQSPanel mHeaderQsPanel;
+    private View mDatePrivacyView;
+    private View mDateView;
+    // DateView next to clock. Visible on QQS
+    private VariableDateView mClockDateView;
+    private View mStatusIconsView;
+    private View mContainer;
+
+    private View mQSCarriers;
+    private ViewGroup mClockContainer;
+    private Clock mClockView;
+    private Space mDatePrivacySeparator;
+    private View mClockIconsSeparator;
+    private boolean mShowClockIconsSeparator;
+    private View mRightLayout;
+    private View mDateContainer;
+    private View mPrivacyContainer;
+
+    private BatteryMeterView mBatteryRemainingIcon;
+    private StatusIconContainer mIconContainer;
+    private View mPrivacyChip;
+
+    @Nullable
+    private TintedIconManager mTintedIconManager;
+    @Nullable
+    private QSExpansionPathInterpolator mQSExpansionPathInterpolator;
+    private StatusBarContentInsetsProvider mInsetsProvider;
+
+    private int mRoundedCornerPadding = 0;
+    private int mWaterfallTopInset;
+    private int mCutOutPaddingLeft;
+    private int mCutOutPaddingRight;
+    private float mKeyguardExpansionFraction;
+    private int mTextColorPrimary = Color.TRANSPARENT;
+    private int mTopViewMeasureHeight;
+
+    @NonNull
+    private List<String> mRssiIgnoredSlots = List.of();
+    private boolean mIsSingleCarrier;
+
+    private boolean mHasCenterCutout;
+    private boolean mConfigShowBatteryEstimate;
+
+    private boolean mUseCombinedQSHeader;
+
+    private final ActivityStarter mActivityStarter;
+    private final Vibrator mVibrator;
 
     public QuickStatusBarHeader(Context context, AttributeSet attrs) {
         super(context, attrs);
         mActivityStarter = Dependency.get(ActivityStarter.class);
+        mVibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
     }
 
     /**
@@ -86,7 +139,11 @@ public class QuickStatusBarHeader extends FrameLayout {
         mIconContainer = findViewById(R.id.statusIcons);
         mPrivacyChip = findViewById(R.id.privacy_chip);
         mDateView = findViewById(R.id.date);
+        mDateView.setOnClickListener(this);
+        mDateView.setOnLongClickListener(this);
         mClockDateView = findViewById(R.id.date_clock);
+        mClockDateView.setOnClickListener(this);
+        mClockDateView.setOnLongClickListener(this);
         mClockIconsSeparator = findViewById(R.id.separator);
         mRightLayout = findViewById(R.id.rightLayout);
         mDateContainer = findViewById(R.id.date_container);
@@ -94,15 +151,12 @@ public class QuickStatusBarHeader extends FrameLayout {
 
         mClockContainer = findViewById(R.id.clock_container);
         mClockView = findViewById(R.id.clock);
-        mClockView.setOnClickListener(
-                v -> mActivityStarter.postStartActivityDismissingKeyguard(
-                        new Intent(AlarmClock.ACTION_SHOW_ALARMS), 0));
+        mClockView.setOnClickListener(this);
         mDatePrivacySeparator = findViewById(R.id.space);
         // Tint for the battery icons are handled in setupHost()
         mBatteryRemainingIcon = findViewById(R.id.batteryRemainingIcon);
-        mBatteryRemainingIcon.setOnClickListener(
-                v -> mActivityStarter.postStartActivityDismissingKeyguard(
-                        new Intent(Intent.ACTION_POWER_USAGE_SUMMARY), 0));
+        mBatteryRemainingIcon.setOnClickListener(this);
+        mBatteryRemainingIcon.setOnLongClickListener(this);
 
         updateResources();
         Configuration config = mContext.getResources().getConfiguration();
