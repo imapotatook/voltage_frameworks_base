@@ -6358,9 +6358,6 @@ public class NotificationManagerServiceTest extends UiServiceTestCase {
 
     @Test
     public void testCannotRemoveForegroundFlagWhenOverLimit_enqueued() {
-        when(mAmi.applyForegroundServiceNotification(
-                any(), anyString(), anyInt(), anyString(), anyInt()))
-                .thenReturn(SHOW_IMMEDIATELY);
         for (int i = 0; i < NotificationManagerService.MAX_PACKAGE_NOTIFICATIONS; i++) {
             Notification n = new Notification.Builder(mContext, "").build();
             StatusBarNotification sbn = new StatusBarNotification(PKG, PKG, i, null, mUid, 0,
@@ -6389,9 +6386,6 @@ public class NotificationManagerServiceTest extends UiServiceTestCase {
 
     @Test
     public void testCannotRemoveForegroundFlagWhenOverLimit_posted() {
-        when(mAmi.applyForegroundServiceNotification(
-                any(), anyString(), anyInt(), anyString(), anyInt()))
-                .thenReturn(SHOW_IMMEDIATELY);
         for (int i = 0; i < NotificationManagerService.MAX_PACKAGE_NOTIFICATIONS; i++) {
             Notification n = new Notification.Builder(mContext, "").build();
             StatusBarNotification sbn = new StatusBarNotification(PKG, PKG, i, null, mUid, 0,
