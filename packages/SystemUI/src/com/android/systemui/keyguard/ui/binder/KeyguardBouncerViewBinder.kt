@@ -134,12 +134,26 @@ object KeyguardBouncerViewBinder {
                                 securityContainerController.reset()
                                 securityContainerController.onPause()
                             }
+                            hostViewController.showPrimarySecurityScreen()
+                            hostViewController.appear(
+                                SystemBarUtils.getStatusBarHeight(view.context)
+                            )
                         }
                     }
 
                     launch {
-                        viewModel.startingToHide.collect {
-                            securityContainerController.onStartingToHide()
+                        viewModel.showWithFullExpansion.collect { model ->
+                            hostViewController.resetSecurityContainer()
+                            hostViewController.showPromptReason(model.promptReason)
+                            hostViewController.onResume()
+                        }
+                    }
+
+                    launch {
+                        viewModel.hide.collect {
+                            hostViewController.cancelDismissAction()
+                            hostViewController.cleanUp()
+                            hostViewController.resetSecurityContainer()
                         }
                     }
 

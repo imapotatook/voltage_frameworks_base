@@ -130,4 +130,22 @@ public class KeyguardAbsKeyInputViewControllerTest extends SysuiTestCase {
         verifyZeroInteractions(mKeyguardSecurityCallback);
         verifyZeroInteractions(mKeyguardMessageAreaController);
     }
+
+    @Test
+    public void onPromptReasonNone_doesNotSetMessage() {
+        mKeyguardAbsKeyInputViewController.showPromptReason(0);
+        verify(mKeyguardMessageAreaController, never()).setMessage(
+                getContext().getResources().getString(R.string.kg_prompt_reason_restart_password),
+                false);
+    }
+
+    @Test
+    public void onPromptReason_setsMessage() {
+        when(mAbsKeyInputView.getPromptReasonStringRes(1)).thenReturn(
+                R.string.kg_prompt_reason_restart_password);
+        mKeyguardAbsKeyInputViewController.showPromptReason(1);
+        verify(mKeyguardMessageAreaController).setMessage(
+                getContext().getResources().getString(R.string.kg_prompt_reason_restart_password),
+                false);
+    }
 }

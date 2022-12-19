@@ -784,21 +784,6 @@ public class KeyguardIndicationControllerTest extends SysuiTestCase {
     }
 
     @Test
-    public void transientIndication_swipeUpToRetry_faceAuthenticated() {
-        createController();
-        String message = mContext.getString(R.string.keyguard_retry);
-        when(mStatusBarKeyguardViewManager.isBouncerShowing()).thenReturn(true);
-        when(mKeyguardUpdateMonitor.getIsFaceAuthenticated()).thenReturn(true);
-        when(mKeyguardUpdateMonitor.isFaceEnrolled()).thenReturn(true);
-
-        mController.setVisible(true);
-        mController.getKeyguardCallback().onBiometricError(FACE_ERROR_TIMEOUT,
-                "A message", BiometricSourceType.FACE);
-
-        verify(mStatusBarKeyguardViewManager, never()).setKeyguardMessage(eq(message), any());
-    }
-
-    @Test
     public void faceErrorTimeout_whenFingerprintEnrolled_doesNotShowMessage() {
         createController();
         when(mKeyguardUpdateMonitor.getCachedIsUnlockWithFingerprintPossible(
