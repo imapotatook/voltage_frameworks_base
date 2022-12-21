@@ -367,6 +367,13 @@ public class QSFactoryImpl implements QSFactory {
                     mCustomTileBuilderProvider.get(), tileSpec, mQsHostLazy.get().getUserContext());
         }
 
+        // Debug tiles.
+        if (Build.IS_ENG) {
+            if (tileSpec.equals(GarbageMonitor.MemoryTile.TILE_SPEC)) {
+                return mMemoryTileProvider.get();
+            }
+        }
+
         // Broken tiles.
         Log.w(TAG, "No stock tile spec: " + tileSpec);
         return null;
