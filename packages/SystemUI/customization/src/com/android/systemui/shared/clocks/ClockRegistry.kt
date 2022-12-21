@@ -36,9 +36,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-private val TAG = ClockRegistry::class.simpleName!!
-private const val DEBUG = true
-private val KEY_TIMESTAMP = "appliedTimestamp"
+private val TAG = ClockRegistry::class.simpleName
+private const val DEBUG = false
 
 /** ClockRegistry aggregates providers and plugins */
 open class ClockRegistry(
