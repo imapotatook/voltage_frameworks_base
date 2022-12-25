@@ -533,6 +533,16 @@ public final class NotificationPanelViewController implements Dumpable {
     private boolean mIsGestureNavigation;
     private int mOldLayoutDirection;
     private NotificationShelfController mNotificationShelfController;
+    private int mScrimCornerRadius;
+    private int mScreenCornerRadius;
+    private boolean mQSAnimatingHiddenFromCollapsed;
+    private boolean mUseLargeScreenShadeHeader;
+    private boolean mEnableQsClipping;
+    private boolean mUseCombinedQSHeaders;
+
+    private int mQsClipTop;
+    private int mQsClipBottom;
+    private boolean mQsVisible;
 
     private final ContentResolver mContentResolver;
     private float mMinFraction;
@@ -1218,7 +1228,32 @@ public final class NotificationPanelViewController implements Dumpable {
                 LargeScreenUtils.shouldUseSplitNotificationShade(mResources);
         final boolean splitShadeChanged = mSplitShadeEnabled != newSplitShadeEnabled;
         mSplitShadeEnabled = newSplitShadeEnabled;
-        mQsController.updateResources();
+
+        if (mQs != null) {
+            mQs.setInSplitShade(mSplitShadeEnabled);
+        }
+
+        mUseLargeScreenShadeHeader =
+                LargeScreenUtils.shouldUseLargeScreenShadeHeader(mView.getResources());
+        mUseCombinedQSHeaders = mFeatureFlags.isEnabled(Flags.COMBINED_QS_HEADERS);
+
+        mLargeScreenShadeHeaderHeight =
+                mResources.getDimensionPixelSize(R.dimen.large_screen_shade_header_height);
+        // TODO: When the flag is eventually removed, it means that we have a single view that is
+        // the same height in QQS and in Large Screen (large_screen_shade_header_height). Eventually
+        // the concept of largeScreenHeader or quickQsHeader will disappear outside of the class
+        // that controls the view as the offset needs to be the same regardless.
+        if (mUseLargeScreenShadeHeader || mFeatureFlags.isEnabled(Flags.COMBINED_QS_HEADERS)) {
+            mQuickQsHeaderHeight = mLargeScreenShadeHeaderHeight;
+        } else {
+            mQuickQsHeaderHeight = SystemBarUtils.getQuickQsOffsetHeight(mView.getContext());
+        }
+        int topMargin = mUseLargeScreenShadeHeader ? mLargeScreenShadeHeaderHeight :
+                mResources.getDimensionPixelSize(mUseCombinedQSHeaders
+                        ? R.dimen.notification_panel_margin_top_combined_headers
+                        : R.dimen.notification_panel_margin_top);
+        mLargeScreenShadeHeaderController.setLargeScreenActive(mUseLargeScreenShadeHeader);
+        mAmbientState.setStackTopMargin(topMargin);
         mNotificationsQSContainerController.updateResources();
         updateKeyguardStatusViewAlignment(/* animate= */false);
         mKeyguardMediaController.refreshMediaPosition();
