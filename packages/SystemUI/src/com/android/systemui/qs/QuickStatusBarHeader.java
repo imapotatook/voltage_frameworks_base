@@ -410,6 +410,130 @@ public class QuickStatusBarHeader extends FrameLayout implements TunerService.Tu
         updateResources();
     }
 
+    @Override
+    public WindowInsets onApplyWindowInsets(WindowInsets insets) {
+        // Handle padding of the views
+        DisplayCutout cutout = insets.getDisplayCutout();
+
+        Pair<Integer, Integer> sbInsets = mInsetsProvider
+                .getStatusBarContentInsetsForCurrentRotation();
+        boolean hasCornerCutout = mInsetsProvider.currentRotationHasCornerCutout();
+
+        mDatePrivacyView.setPadding(
+                sbInsets.first,
+                mDatePrivacyView.getPaddingTop(),
+                sbInsets.second,
+                mDatePrivacyView.getPaddingBottom());
+        mStatusIconsView.setPadding(
+                sbInsets.first,
+                mStatusIconsView.getPaddingTop(),
+                sbInsets.second,
+                mStatusIconsView.getPaddingBottom());
+        LinearLayout.LayoutParams datePrivacySeparatorLayoutParams =
+                (LinearLayout.LayoutParams) mDatePrivacySeparator.getLayoutParams();
+        LinearLayout.LayoutParams mClockIconsSeparatorLayoutParams =
+                (LinearLayout.LayoutParams) mClockIconsSeparator.getLayoutParams();
+        if (cutout != null) {
+            Rect topCutout = cutout.getBoundingRectTop();
+            if (topCutout.isEmpty() || hasCornerCutout) {
+                datePrivacySeparatorLayoutParams.width = 0;
+                mDatePrivacySeparator.setVisibility(View.GONE);
+                mClockIconsSeparatorLayoutParams.width = 0;
+                setSeparatorVisibility(false);
+                mShowClockIconsSeparator = false;
+                mHasCenterCutout = false;
+            } else {
+                datePrivacySeparatorLayoutParams.width = topCutout.width();
+                mDatePrivacySeparator.setVisibility(View.VISIBLE);
+                mClockIconsSeparatorLayoutParams.width = topCutout.width();
+                mShowClockIconsSeparator = true;
+                setSeparatorVisibility(mKeyguardExpansionFraction == 0f);
+                mHasCenterCutout = true;
+            }
+        }
+        mDatePrivacySeparator.setLayoutParams(datePrivacySeparatorLayoutParams);
+        mClockIconsSeparator.setLayoutParams(mClockIconsSeparatorLayoutParams);
+        mCutOutPaddingLeft = sbInsets.first;
+        mCutOutPaddingRight = sbInsets.second;
+        mWaterfallTopInset = cutout == null ? 0 : cutout.getWaterfallInsets().top;
+
+        updateBatteryMode();
+        updateHeadersPadding();
+        return super.onApplyWindowInsets(insets);
+    }
+
+    /**
+     * Sets the visibility of the separator between clock and icons.
+     *
+     * This separator is "visible" when there is a center cutout, to block that space. In that
+     * case, the clock and the layout on the right (containing the icons and the battery meter) are
+     * set to weight 1 to take the available space.
+     * @param visible whether the separator between clock and icons should be visible.
+     */
+    private void setSeparatorVisibility(boolean visible) {
+        int newVisibility = visible ? View.VISIBLE : View.GONE;
+        if (mClockIconsSeparator.getVisibility() == newVisibility) return;
+
+        mClockIconsSeparator.setVisibility(visible ? View.VISIBLE : View.GONE);
+        mQSCarriers.setVisibility(visible ? View.GONE : View.VISIBLE);
+
+        LinearLayout.LayoutParams lp =
+                (LinearLayout.LayoutParams) mClockContainer.getLayoutParams();
+        lp.width = visible ? 0 : WRAP_CONTENT;
+        lp.weight = visible ? 1f : 0f;
+        mClockContainer.setLayoutParams(lp);
+
+        lp = (LinearLayout.LayoutParams) mRightLayout.getLayoutParams();
+        lp.width = visible ? 0 : WRAP_CONTENT;
+        lp.weight = visible ? 1f : 0f;
+        mRightLayout.setLayoutParams(lp);
+    }
+
+    private void updateHeadersPadding() {
+        setContentMargins(mDatePrivacyView, 0, 0);
+        setContentMargins(mStatusIconsView, 0, 0);
+        int paddingLeft = 0;
+        int paddingRight = 0;
+
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) getLayoutParams();
+        int leftMargin = lp.leftMargin;
+        int rightMargin = lp.rightMargin;
+
+        int statusBarPaddingTop = getResources().getDimensionPixelSize(
+                R.dimen.status_bar_padding_top);
+        int statusBarPaddingStart = getResources().getDimensionPixelSize(
+                R.dimen.status_bar_padding_start);
+        int statusBarPaddingEnd = getResources().getDimensionPixelSize(
+                R.dimen.status_bar_padding_end);
+
+        // The clock might collide with cutouts, let's shift it out of the way.
+        // We only do that if the inset is bigger than our own padding, since it's nicer to
+        // align with
+        if (mCutOutPaddingLeft > 0) {
+            // if there's a cutout, let's use at least the rounded corner inset
+            int cutoutPadding = Math.max(mCutOutPaddingLeft, mRoundedCornerPadding);
+            paddingLeft = Math.max(cutoutPadding - leftMargin, statusBarPaddingStart);
+        }
+        if (mCutOutPaddingRight > 0) {
+            // if there's a cutout, let's use at least the rounded corner inset
+            int cutoutPadding = Math.max(mCutOutPaddingRight, mRoundedCornerPadding);
+            paddingRight = Math.max(cutoutPadding - rightMargin, statusBarPaddingEnd);
+        }
+
+        mDatePrivacyView.setPadding(paddingLeft,
+                mWaterfallTopInset,
+                paddingRight,
+                0);
+        mStatusIconsView.setPadding(paddingLeft,
+                mWaterfallTopInset,
+                paddingRight,
+                0);
+    }
+
+    public void updateEverything() {
+        post(() -> setClickable(!mExpanded));
+    }
+
     private void setContentMargins(View view, int marginStart, int marginEnd) {
         MarginLayoutParams lp = (MarginLayoutParams) view.getLayoutParams();
         lp.setMarginStart(marginStart);
