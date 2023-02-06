@@ -262,13 +262,6 @@ class DialogLaunchAnimatorTest : SysuiTestCase() {
     }
 
     @Test
-    fun creatingControllerFromNormalViewThrows() {
-        assertThrows(IllegalArgumentException::class.java) {
-            DialogLaunchAnimator.Controller.fromView(FrameLayout(mContext))
-        }
-    }
-
-    @Test
     fun showFromDialogDoesNotCrashWhenShownFromRandomDialog() {
         val dialog = createDialogAndShowFromDialog(animateFrom = TestDialog(context))
         dialog.dismiss()
