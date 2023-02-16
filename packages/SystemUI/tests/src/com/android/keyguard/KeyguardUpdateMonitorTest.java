@@ -27,7 +27,7 @@ import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.SOM
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_BOOT;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN;
 import static com.android.keyguard.FaceAuthApiRequestReason.NOTIFICATION_PANEL_CLICKED;
-import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_HELP_FACE_NOT_AVAILABLE;
+import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_STATE_CANCELLING;
 import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_STATE_CANCELLING_RESTARTING;
 import static com.android.keyguard.KeyguardUpdateMonitor.DEFAULT_CANCEL_SIGNAL_TIMEOUT;
 import static com.android.keyguard.KeyguardUpdateMonitor.HAL_POWER_PRESS_TIMEOUT;
@@ -1137,8 +1137,11 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
 
         // Fingerprint should be cancelled on lockout if going to lockout state, else
         // restarted if it's not
+        // Fingerprint should be cancelled on lockout if going to lockout state, else
+        // restarted if it's not
         assertThat(mKeyguardUpdateMonitor.mFingerprintRunningState)
-                .isEqualTo(BIOMETRIC_STATE_CANCELLING_RESTARTING);
+                .isEqualTo(fpLocked
+                        ? BIOMETRIC_STATE_CANCELLING : BIOMETRIC_STATE_CANCELLING_RESTARTING);
     }
 
     @Test
@@ -2352,213 +2355,6 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
         // THEN request unlock with a keyguard dismissal
         verify(mTrustManager).reportUserRequestedUnlock(eq(KeyguardUpdateMonitor.getCurrentUser()),
                 eq(true));
-    }
-
-    @Test
-    public void testShouldListenForFace_withAuthSupportPostureConfig_returnsTrue()
-            throws RemoteException {
-        mKeyguardUpdateMonitor.mConfigFaceAuthSupportedPosture = DEVICE_POSTURE_CLOSED;
-        keyguardNotGoingAway();
-        bouncerFullyVisibleAndNotGoingToSleep();
-        currentUserIsPrimary();
-        currentUserDoesNotHaveTrust();
-        biometricsNotDisabledThroughDevicePolicyManager();
-        biometricsEnabledForCurrentUser();
-        userNotCurrentlySwitching();
-        supportsFaceDetection();
-
-        deviceInPostureStateOpened();
-        mTestableLooper.processAllMessages();
-        // Should not listen for face when posture state in DEVICE_POSTURE_OPENED
-        assertThat(mKeyguardUpdateMonitor.shouldListenForFace()).isFalse();
-
-        deviceInPostureStateClosed();
-        mTestableLooper.processAllMessages();
-        // Should listen for face when posture state in DEVICE_POSTURE_CLOSED
-        assertThat(mKeyguardUpdateMonitor.shouldListenForFace()).isTrue();
-    }
-
-    @Test
-    public void testShouldListenForFace_withoutAuthSupportPostureConfig_returnsTrue()
-            throws RemoteException {
-        mKeyguardUpdateMonitor.mConfigFaceAuthSupportedPosture = DEVICE_POSTURE_UNKNOWN;
-        keyguardNotGoingAway();
-        bouncerFullyVisibleAndNotGoingToSleep();
-        currentUserIsPrimary();
-        currentUserDoesNotHaveTrust();
-        biometricsNotDisabledThroughDevicePolicyManager();
-        biometricsEnabledForCurrentUser();
-        userNotCurrentlySwitching();
-        supportsFaceDetection();
-
-        deviceInPostureStateClosed();
-        mTestableLooper.processAllMessages();
-        // Whether device in any posture state, always listen for face
-        assertThat(mKeyguardUpdateMonitor.shouldListenForFace()).isTrue();
-
-        deviceInPostureStateOpened();
-        mTestableLooper.processAllMessages();
-        // Whether device in any posture state, always listen for face
-        assertThat(mKeyguardUpdateMonitor.shouldListenForFace()).isTrue();
-    }
-
-    @Test
-    public void unfoldWakeup_requestActiveUnlock_forceDismissKeyguard()
-            throws RemoteException {
-        // GIVEN shouldTriggerActiveUnlock
-        keyguardIsVisible();
-        when(mLockPatternUtils.isSecure(KeyguardUpdateMonitor.getCurrentUser())).thenReturn(true);
-
-        // GIVEN active unlock triggers on wakeup
-        when(mActiveUnlockConfig.shouldAllowActiveUnlockFromOrigin(
-                ActiveUnlockConfig.ActiveUnlockRequestOrigin.WAKE))
-                .thenReturn(true);
-
-        // GIVEN an unfold should force dismiss the keyguard
-        when(mActiveUnlockConfig.shouldWakeupForceDismissKeyguard(
-                PowerManager.WAKE_REASON_UNFOLD_DEVICE)).thenReturn(true);
-
-        // WHEN device wakes up from an unfold
-        mKeyguardUpdateMonitor.dispatchStartedWakingUp(PowerManager.WAKE_REASON_UNFOLD_DEVICE);
-        mTestableLooper.processAllMessages();
-
-        // THEN request unlock with a keyguard dismissal
-        verify(mTrustManager).reportUserRequestedUnlock(eq(KeyguardUpdateMonitor.getCurrentUser()),
-                eq(true));
-    }
-
-    @Test
-    public void unfoldWakeup_requestActiveUnlock_noDismissKeyguard()
-            throws RemoteException {
-        // GIVEN shouldTriggerActiveUnlock on wake from UNFOLD_DEVICE
-        keyguardIsVisible();
-        when(mLockPatternUtils.isSecure(KeyguardUpdateMonitor.getCurrentUser())).thenReturn(true);
-
-        // GIVEN active unlock triggers on wakeup
-        when(mActiveUnlockConfig.shouldAllowActiveUnlockFromOrigin(
-                ActiveUnlockConfig.ActiveUnlockRequestOrigin.WAKE))
-                .thenReturn(true);
-
-        // GIVEN an unfold should NOT force dismiss the keyguard
-        when(mActiveUnlockConfig.shouldWakeupForceDismissKeyguard(
-                PowerManager.WAKE_REASON_UNFOLD_DEVICE)).thenReturn(false);
-
-        // WHEN device wakes up from an unfold
-        mKeyguardUpdateMonitor.dispatchStartedWakingUp(PowerManager.WAKE_REASON_UNFOLD_DEVICE);
-        mTestableLooper.processAllMessages();
-
-        // THEN request unlock WITHOUT a keyguard dismissal
-        verify(mTrustManager).reportUserRequestedUnlock(eq(KeyguardUpdateMonitor.getCurrentUser()),
-                eq(false));
-    }
-
-    @Test
-    public void unfoldFromPostureChange_requestActiveUnlock_forceDismissKeyguard()
-            throws RemoteException {
-        // GIVEN shouldTriggerActiveUnlock
-        keyguardIsVisible();
-        when(mLockPatternUtils.isSecure(KeyguardUpdateMonitor.getCurrentUser())).thenReturn(true);
-
-        // GIVEN active unlock triggers on wakeup
-        when(mActiveUnlockConfig.shouldAllowActiveUnlockFromOrigin(
-                ActiveUnlockConfig.ActiveUnlockRequestOrigin.WAKE))
-                .thenReturn(true);
-
-        // GIVEN an unfold should force dismiss the keyguard
-        when(mActiveUnlockConfig.shouldWakeupForceDismissKeyguard(
-                PowerManager.WAKE_REASON_UNFOLD_DEVICE)).thenReturn(true);
-
-        // WHEN device posture changes to unfold
-        deviceInPostureStateOpened();
-        mTestableLooper.processAllMessages();
-
-        // THEN request unlock with a keyguard dismissal
-        verify(mTrustManager).reportUserRequestedUnlock(eq(KeyguardUpdateMonitor.getCurrentUser()),
-                eq(true));
-    }
-
-
-    @Test
-    public void unfoldFromPostureChange_requestActiveUnlock_noDismissKeyguard()
-            throws RemoteException {
-        // GIVEN shouldTriggerActiveUnlock on wake from UNFOLD_DEVICE
-        keyguardIsVisible();
-        when(mLockPatternUtils.isSecure(KeyguardUpdateMonitor.getCurrentUser())).thenReturn(true);
-
-        // GIVEN active unlock triggers on wakeup
-        when(mActiveUnlockConfig.shouldAllowActiveUnlockFromOrigin(
-                ActiveUnlockConfig.ActiveUnlockRequestOrigin.WAKE))
-                .thenReturn(true);
-
-        // GIVEN an unfold should NOT force dismiss the keyguard
-        when(mActiveUnlockConfig.shouldWakeupForceDismissKeyguard(
-                PowerManager.WAKE_REASON_UNFOLD_DEVICE)).thenReturn(false);
-
-        // WHEN device posture changes to unfold
-        deviceInPostureStateOpened();
-        mTestableLooper.processAllMessages();
-
-        // THEN request unlock WITHOUT a keyguard dismissal
-        verify(mTrustManager).reportUserRequestedUnlock(eq(KeyguardUpdateMonitor.getCurrentUser()),
-                eq(false));
-    }
-
-    @Test
-    public void detectFingerprint_onTemporaryLockoutReset_authenticateFingerprint() {
-        ArgumentCaptor<FingerprintManager.LockoutResetCallback> fpLockoutResetCallbackCaptor =
-                ArgumentCaptor.forClass(FingerprintManager.LockoutResetCallback.class);
-        verify(mFingerprintManager).addLockoutResetCallback(fpLockoutResetCallbackCaptor.capture());
-
-        // GIVEN device is locked out
-        fingerprintErrorTemporaryLockedOut();
-
-        // GIVEN FP detection is running
-        givenDetectFingerprintWithClearingFingerprintManagerInvocations();
-        verifyFingerprintDetectCall();
-        verifyFingerprintAuthenticateNeverCalled();
-
-        // WHEN temporary lockout resets
-        fpLockoutResetCallbackCaptor.getValue().onLockoutReset(0);
-        mTestableLooper.processAllMessages();
-
-        // THEN fingerprint detect state should cancel & then restart (for authenticate call)
-        assertThat(mKeyguardUpdateMonitor.mFingerprintRunningState)
-                .isEqualTo(BIOMETRIC_STATE_CANCELLING_RESTARTING);
-    }
-
-    private void verifyFingerprintAuthenticateNeverCalled() {
-        verify(mFingerprintManager, never()).authenticate(any(), any(), any(), any(), anyInt(),
-                anyInt(), anyInt());
-    }
-
-    private void verifyFingerprintAuthenticateCall() {
-        verify(mFingerprintManager).authenticate(any(), any(), any(), any(), anyInt(), anyInt(),
-                anyInt());
-    }
-
-    private void verifyFingerprintDetectNeverCalled() {
-        verify(mFingerprintManager, never()).detectFingerprint(any(), any(), anyInt());
-    }
-
-    private void verifyFingerprintDetectCall() {
-        verify(mFingerprintManager).detectFingerprint(any(), any(), anyInt());
-    }
-
-    private void verifyFaceAuthenticateNeverCalled() {
-        verify(mFaceManager, never()).authenticate(any(), any(), any(), any(), anyInt(),
-                anyBoolean());
-    }
-
-    private void verifyFaceAuthenticateCall() {
-        verify(mFaceManager).authenticate(any(), any(), any(), any(), anyInt(), anyBoolean());
-    }
-
-    private void verifyFaceDetectNeverCalled() {
-        verify(mFaceManager, never()).detectFace(any(), any(), anyInt());
-    }
-
-    private void verifyFaceDetectCall() {
-        verify(mFaceManager).detectFace(any(), any(), anyInt());
     }
 
     private void userDeviceLockDown() {
