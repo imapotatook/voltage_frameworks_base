@@ -166,7 +166,13 @@ object Flags {
     // TODO(b/255618149): Tracking Bug
     @JvmField
     val CUSTOMIZABLE_LOCK_SCREEN_QUICK_AFFORDANCES =
-        unreleasedFlag(216, "customizable_lock_screen_quick_affordances", teamfood = true)
+        releasedFlag(216, "customizable_lock_screen_quick_affordances")
+
+    /** Shows chipbar UI whenever the device is unlocked by ActiveUnlock (watch). */
+    // TODO(b/256513609): Tracking Bug
+    @JvmField
+    val ACTIVE_UNLOCK_CHIPBAR =
+        resourceBooleanFlag(217, R.bool.flag_active_unlock_chipbar, "active_unlock_chipbar")
 
     /**
      * Migrates control of the LightRevealScrim's reveal effect and amount from legacy code to the
