@@ -52,6 +52,7 @@ import com.android.systemui.R;
 import com.android.systemui.SysuiBaseFragmentTest;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.flags.FeatureFlags;
+import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.DarkIconDispatcher;
 import com.android.systemui.plugins.log.LogBuffer;
 import com.android.systemui.plugins.log.LogcatEchoTracker;
@@ -127,11 +128,7 @@ public class CollapsedStatusBarFragmentTest extends SysuiBaseFragmentTest {
     @Mock
     private DumpManager mDumpManager;
     @Mock
-    private StatusBarWindowStateController mStatusBarWindowStateController;
-    @Mock
-    private KeyguardUpdateMonitor mKeyguardUpdateMonitor;
-
-    private List<StatusBarWindowStateListener> mStatusBarWindowStateListeners = new ArrayList<>();
+    private ActivityStarter mActivityStarter;
 
     public CollapsedStatusBarFragmentTest() {
         super(CollapsedStatusBarFragment.class);
@@ -456,27 +453,6 @@ public class CollapsedStatusBarFragmentTest extends SysuiBaseFragmentTest {
         assertFalse(contains);
     }
 
-    @Test
-    public void testStatusBarIcons_hiddenThroughoutCameraLaunch() {
-        final CollapsedStatusBarFragment fragment = resumeAndGetFragment();
-
-        mockSecureCameraLaunch(fragment, true /* launched */);
-
-        // Status icons should be invisible or gone, but certainly not VISIBLE.
-        assertNotEquals(View.VISIBLE, getEndSideContentView().getVisibility());
-        assertNotEquals(View.VISIBLE, getClockView().getVisibility());
-
-        mockSecureCameraLaunchFinished();
-
-        assertNotEquals(View.VISIBLE, getEndSideContentView().getVisibility());
-        assertNotEquals(View.VISIBLE, getClockView().getVisibility());
-
-        mockSecureCameraLaunch(fragment, false /* launched */);
-
-        assertEquals(View.VISIBLE, getEndSideContentView().getVisibility());
-        assertEquals(View.VISIBLE, getClockView().getVisibility());
-    }
-
     @Override
     protected Fragment instantiate(Context context, String className, Bundle arguments) {
         MockitoAnnotations.initMocks(this);
@@ -519,8 +495,7 @@ public class CollapsedStatusBarFragmentTest extends SysuiBaseFragmentTest {
                 mSecureSettings,
                 mExecutor,
                 mDumpManager,
-                mStatusBarWindowStateController,
-                mKeyguardUpdateMonitor);
+                mActivityStarter);
     }
 
     private void setUpDaggerComponent() {
