@@ -19,7 +19,8 @@ public class GoogleEuicc {
     public static boolean checkLpaDependencies() {
         for (String pkg : getLpaDependencies()) {
             try {
-                if (!GmsCompat.isGmsApp(pkg, UserHandle.USER_SYSTEM)) {
+                if (GmsCompat.isGmsApp(pkg, UserHandle.USER_SYSTEM)) 
+                {
                     return false;
                 }
             } catch (Exception e) {
